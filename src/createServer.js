@@ -20,7 +20,6 @@ function createServer() {
       const urlObj = new URL(req.url, `http://${req.headers.host}`);
       const pathname = decodeURIComponent(urlObj.pathname);
 
-      // 1. Початкова перевірка маршруту
       if (!pathname.startsWith('/file/') || pathname === '/file') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('To load a file, use /file/filename.ext');
@@ -28,10 +27,15 @@ function createServer() {
         return;
       }
 
-      // 2. Виділення імені файлу
-      let fileName = pathname.slice(6); // Вирізаємо "/file/"
+      let fileName = pathname.slice(6);
 
-      // 3. Нормалізація: якщо порожньо — використовуємо index.html
+      if (pathname.includes('//')) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Status: 404');
+
+        return;
+      }
+
       if (fileName === '' || fileName === '/') {
         fileName = 'index.html';
       }
@@ -43,29 +47,20 @@ function createServer() {
         return;
       }
 
-      // 5. Побудова абсолютних шляхів для перевірки
       const publicDir = path.join(process.cwd(), 'public');
       const fullPath = path.resolve(publicDir, fileName);
+      const isInsidePublic =
+        fullPath === publicDir || fullPath.startsWith(publicDir + path.sep);
 
-      if (!fullPath.startsWith(publicDir)) {
+      if (!isInsidePublic) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         res.end('Status: 400 - Access Denied');
 
         return;
       }
 
-      // 7. Перевірка на подвійні слеші в URL (за вашою умовою — 404)
-      if (pathname.includes('//')) {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('Status: 404');
-
-        return;
-      }
-
-      // 8. Читання файлу
       const content = await fs.promises.readFile(fullPath);
 
-      // 9. Визначення Content-Type
       const ext = path.extname(fullPath).toLowerCase();
       const contentType = MIME_TYPES[ext] || 'text/plain';
 
