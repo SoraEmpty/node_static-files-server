@@ -7,28 +7,32 @@ const path = require('path');
 function createServer() {
   return http.createServer(async (req, res) => {
     try {
-      if (!req.url.startsWith('/file/') || req.url === '/file') {
-        res.end('hint message');
+      const urlObj = new URL(req.url, `http://${req.headers.host}`);
+      const pathname = decodeURIComponent(urlObj.pathname);
+
+      if (!pathname.startsWith('/file/') || req.url === '/file') {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('To load a file, use /file/filename.ext');
 
         return;
       }
 
-      if (req.url.includes('../')) {
+      if (pathname.includes('..')) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
-        res.end('400');
+        res.end('Status: 400 - Traversal detected');
 
         return;
       }
 
-      if (req.url.includes('//')) {
+      if (pathname.includes('//')) {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('404');
+        res.end('Status: 404');
 
         return;
       }
 
-      const fileName = req.url.slice(6);
-      const fullPath = path.join(__dirname, 'public', fileName);
+      const fileName = pathname.slice(6);
+      const fullPath = path.join(process.cwd(), 'public', fileName);
       const content = await fs.promises.readFile(fullPath);
 
       res.writeHead(200);
